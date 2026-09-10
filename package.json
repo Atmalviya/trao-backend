@@ -2,25 +2,31 @@
   "name": "prep-kit-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "INterview Prep Kit backend API",
+  "description": "AI Interview Prep Kit — backend API and generation pipeline",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/api/server.ts",
     "start": "tsx src/api/server.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fixtures": "node fixtures/serve.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@google/genai": "^2.21.0",
     "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
     "connect-mongo": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "groq-sdk": "^1.6.0",
+    "ipaddr.js": "^2.5.0",
     "mongoose": "^9.9.5",
+    "robots-parser": "^3.0.1",
     "zod": "^4.6.1"
   },
   "devDependencies": {
