@@ -41,7 +41,9 @@ async function main() {
   // Fail fast if no provider is configured — clearer than failing every case.
   const llm = createLlmClient({
     geminiApiKey: process.env.GEMINI_API_KEY,
+    geminiModel: process.env.GEMINI_MODEL,
     groqApiKey: process.env.GROQ_API_KEY,
+    groqModel: process.env.GROQ_MODEL,
   });
 
   const raw = await readFile(values.input, "utf-8");

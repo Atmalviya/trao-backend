@@ -9,7 +9,7 @@ export class GeminiProvider implements LlmProvider {
 
   constructor(
     apiKey: string,
-    readonly model = "gemini-2.0-flash",
+    readonly model = "gemini-2.5-flash",
   ) {
     this.client = new GoogleGenAI({ apiKey });
   }

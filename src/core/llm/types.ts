@@ -35,3 +35,13 @@ export class TransientError extends Error {
     this.name = "TransientError";
   }
 }
+
+/**
+ * Thrown when a *per-day*  quota is exhausted. cause this is not retryable
+ */
+export class QuotaExhaustedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "QuotaExhaustedError";
+  }
+}

@@ -3,8 +3,11 @@ import { z } from "zod";
 import { LlmClient } from "../src/core/llm/client.js";
 import { extractJson } from "../src/core/llm/json.js";
 import { RateLimitedQueue } from "../src/core/llm/queue.js";
+import { normalizeProviderError } from "../src/core/llm/errors.js";
 import {
+  QuotaExhaustedError,
   RateLimitError,
+  TransientError,
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
@@ -79,6 +82,61 @@ describe("RateLimitedQueue", () => {
     vi.useRealTimers();
     expect(results).toEqual([1, 2, 3]);
     expect(Date.now() - start).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("normalizeProviderError", () => {
+  const genaiError = (code: number, status: string, extra = "") =>
+    Object.assign(new Error(`{"error":{"code":${code},"message":"boom"${extra},"status":"${status}"}}`), {
+      status,
+    });
+
+  it("maps a string RESOURCE_EXHAUSTED status to a retryable rate-limit error", () => {
+    try {
+      normalizeProviderError(genaiError(429, "RESOURCE_EXHAUSTED"));
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(RateLimitError);
+    }
+  });
+
+  it("maps a string UNAVAILABLE (503) status to a transient error", () => {
+    try {
+      normalizeProviderError(genaiError(503, "UNAVAILABLE"));
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(TransientError);
+    }
+  });
+
+  it("extracts the embedded retryDelay hint for rate-limit backoff", () => {
+    try {
+      normalizeProviderError(genaiError(429, "RESOURCE_EXHAUSTED", ',"retryDelay":"24s"'));
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(RateLimitError);
+      expect((err as RateLimitError).retryAfterMs).toBe(24_000);
+    }
+  });
+
+  it("treats a per-day free-tier quota (429) as non-retryable QuotaExhaustedError", () => {
+    const dailyQuota = genaiError(
+      429,
+      "RESOURCE_EXHAUSTED",
+      ',"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"',
+    );
+    try {
+      normalizeProviderError(dailyQuota);
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(QuotaExhaustedError);
+      expect(err).not.toBeInstanceOf(RateLimitError);
+    }
+  });
+
+  it("rethrows a genuine non-retryable error (404) as-is", () => {
+    const notFound = genaiError(404, "NOT_FOUND");
+    expect(() => normalizeProviderError(notFound)).toThrow(notFound);
   });
 });
 

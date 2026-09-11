@@ -8,7 +8,9 @@ const envSchema = z.object({
   MONGODB_URI: z.string().default("mongodb://localhost:27017/prepkit"),
   SESSION_SECRET: z.string().min(10, "SESSION_SECRET must be set to a long random string"),
   GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),
   ALLOW_PRIVATE_NETWORKS: z
     .string()

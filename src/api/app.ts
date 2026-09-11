@@ -5,6 +5,7 @@ import { errorHandler, notFoundHandler } from "./errors.js";
 import { authRouter } from "./routes/auth.js";
 import { builderRouter } from "./routes/kitBuilder.js";
 import { kitsRouter } from "./routes/kits.js";
+import { practiceRouter } from "./routes/practice.js";
 import { sessionMiddleware } from "./session.js";
 
 export function createApp() {
@@ -17,6 +18,7 @@ export function createApp() {
   app.get("/health", (_req, res) => res.json({ ok: true }));
   app.use("/auth", authRouter);
   app.use("/kits", builderRouter);
+  app.use("/kits", practiceRouter);
   app.use("/kits", kitsRouter);
 
   app.use(notFoundHandler);
