@@ -9,7 +9,8 @@
     "start": "tsx src/api/server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "fixtures": "node fixtures/serve.mjs"
+    "fixtures": "node fixtures/serve.mjs",
+    "evaluate": "tsx scripts/evaluate.ts"
   },
   "engines": {
     "node": ">=20"

@@ -4,9 +4,7 @@ import { extname, join, normalize as pathNormalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateKit, type StepName, type StepStatus } from "../src/core/generateKit.js";
-import { LlmClient } from "../src/core/llm/client.js";
-import { RateLimitedQueue } from "../src/core/llm/queue.js";
-import type { LlmProvider, LlmRequest, LlmResponse } from "../src/core/llm/types.js";
+import { fakeLlm } from "./helpers/fakeLlm.js";
 
 const ROOT = join(fileURLToPath(new URL("..", import.meta.url)), "fixtures", "site");
 
@@ -31,101 +29,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
-
-/** Requirement ids mentioned in a question-generation prompt. */
-function idsIn(prompt: string): string[] {
-  return [...new Set(prompt.match(/\br\d+\b/g) ?? [])];
-}
-
-/**
- * Fake provider returning canned JSON keyed by step label. It exercises the
- * REAL client (JSON parse + zod validation) and the REAL orchestrator/crawler.
- * The first technical call deliberately omits the last requirement to force the
- * coverage gap-fill loop; the follow-up call (fewer reqs) then covers it.
- */
-function makeFakeProvider(): LlmProvider {
-  let technicalCalls = 0;
-  return {
-    name: "fake",
-    model: "fake-1",
-    async complete(req: LlmRequest): Promise<LlmResponse> {
-      const label = req.label;
-      const json = (obj: unknown): LlmResponse => ({
-        text: JSON.stringify(obj),
-        provider: "fake",
-        model: "fake-1",
-      });
-
-      if (label.startsWith("extract_requirements")) {
-        return json({
-          title: "Senior Backend Engineer",
-          seniority: "senior",
-          responsibilities: ["Build and operate distributed services"],
-          requirements: [
-            { text: "5+ years with Node.js", kind: "technical", priority: "must" },
-            { text: "Distributed systems design", kind: "technical", priority: "must" },
-            { text: "Mentors junior engineers", kind: "behavioural", priority: "must" },
-            { text: "Kubernetes experience", kind: "technical", priority: "nice" },
-          ],
-          notes: "",
-        });
-      }
-      if (label.startsWith("company_brief")) {
-        return json({ summary: "Acme builds warehouse robots.", what_they_do: "AMRs for fulfilment.", low_information: false });
-      }
-      if (label.startsWith("generate_questions:technical")) {
-        technicalCalls++;
-        let ids = idsIn(req.prompt);
-        // First technical call misses the last requirement → forces a gap.
-        if (technicalCalls === 1 && ids.length > 1) ids = ids.slice(0, -1);
-        return json({
-          questions: ids.map((id) => ({
-            requirement_ids: [id],
-            prompt: `Technical question for ${id}`,
-            answer_outline: "outline",
-            difficulty: 3,
-          })),
-        });
-      }
-      if (label.startsWith("generate_questions:behavioural")) {
-        const ids = idsIn(req.prompt);
-        return json({
-          questions: ids.map((id) => ({
-            requirement_ids: [id],
-            prompt: `Behavioural question for ${id}`,
-            answer_outline: "outline",
-            difficulty: 2,
-          })),
-        });
-      }
-      if (label.startsWith("generate_questions:system-design")) {
-        return json({
-          questions: [
-            { requirement_ids: [], prompt: "Design a fleet coordinator", answer_outline: "o", difficulty: 3 },
-          ],
-        });
-      }
-      if (label.startsWith("generate_questions:company-fit")) {
-        return json({
-          questions: [
-            { requirement_ids: [], prompt: "Why Acme?", answer_outline: "o", difficulty: 1 },
-          ],
-        });
-      }
-      if (label.startsWith("generate_flashcards")) {
-        const ids = idsIn(req.prompt);
-        return json({
-          flashcards: [{ front: "Event loop?", back: "Scheduler for async callbacks.", requirement_ids: ids.slice(0, 1) }],
-        });
-      }
-      return json({});
-    },
-  };
-}
-
-function fakeLlm() {
-  return new LlmClient([makeFakeProvider()], new RateLimitedQueue({ baseBackoffMs: 1, requestsPerMinute: 1000, tokensPerMinute: 10_000_000 }));
-}
 
 describe("generateKit (integration: real crawler + fake LLM)", () => {
   it("produces a valid Appendix A kit and closes coverage via a second pass", async () => {
