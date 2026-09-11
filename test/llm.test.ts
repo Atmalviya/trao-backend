@@ -134,6 +134,24 @@ describe("normalizeProviderError", () => {
     }
   });
 
+  it("keeps a per-minute free-tier quota (429) retryable, not QuotaExhausted", () => {
+    // The metric name contains "free_tier_requests" on per-minute 429s too, so
+    // classification must key off the *window* (PerMinute), not the metric.
+    const perMinute = genaiError(
+      429,
+      "RESOURCE_EXHAUSTED",
+      ',"quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier","retryDelay":"34s"',
+    );
+    try {
+      normalizeProviderError(perMinute);
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(RateLimitError);
+      expect(err).not.toBeInstanceOf(QuotaExhaustedError);
+      expect((err as RateLimitError).retryAfterMs).toBe(34_000);
+    }
+  });
+
   it("rethrows a genuine non-retryable error (404) as-is", () => {
     const notFound = genaiError(404, "NOT_FOUND");
     expect(() => normalizeProviderError(notFound)).toThrow(notFound);

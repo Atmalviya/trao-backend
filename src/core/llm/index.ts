@@ -11,6 +11,7 @@ export { RateLimitedQueue } from "./queue.js";
 export interface LlmConfig {
   geminiApiKey?: string;
   geminiModel?: string;
+  geminiApiVersion?: string;
   groqApiKey?: string;
   groqModel?: string;
   rateLimit?: Partial<RateLimitOptions>;
@@ -19,7 +20,9 @@ export interface LlmConfig {
 /** Build the client from whatever credentials are configured. */
 export function createLlmClient(cfg: LlmConfig): LlmClient {
   const providers: LlmProvider[] = [];
-  if (cfg.geminiApiKey) providers.push(new GeminiProvider(cfg.geminiApiKey, cfg.geminiModel));
+  if (cfg.geminiApiKey) {
+    providers.push(new GeminiProvider(cfg.geminiApiKey, cfg.geminiModel, cfg.geminiApiVersion));
+  }
   if (cfg.groqApiKey) providers.push(new GroqProvider(cfg.groqApiKey, cfg.groqModel));
 
   if (providers.length === 0) {

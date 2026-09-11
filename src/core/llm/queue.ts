@@ -8,7 +8,7 @@ export interface RateLimitOptions {
 }
 
 export const defaultRateLimitOptions: RateLimitOptions = {
-  requestsPerMinute: 10,
+  requestsPerMinute: 5,
   tokensPerMinute: 200_000,
   maxAttempts: 5,
   baseBackoffMs: 2_000,

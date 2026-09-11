@@ -4,14 +4,16 @@ import type { LlmProvider, LlmRequest, LlmResponse } from "./types.js";
 
 /** Primary provider. */
 export class GeminiProvider implements LlmProvider {
-  readonly name = "gemini";
+  readonly name: string;
   private client: GoogleGenAI;
 
   constructor(
     apiKey: string,
     readonly model = "gemini-2.5-flash",
+    apiVersion = "v1",
   ) {
-    this.client = new GoogleGenAI({ apiKey });
+    this.name = `gemini:${model}`;
+    this.client = new GoogleGenAI({ apiKey, httpOptions: { apiVersion } });
   }
 
   async complete(req: LlmRequest): Promise<LlmResponse> {

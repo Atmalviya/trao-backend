@@ -62,7 +62,7 @@ export function normalizeProviderError(err: unknown): never {
 
   if (status === 429) {
 
-    if (/per\s*day|PerDay|RequestsPerDay|free_tier_requests/i.test(message)) {
+    if (/per\s*day|PerDay|RequestsPerDay|QuotaPerDay/i.test(message)) {
       throw new QuotaExhaustedError(message);
     }
     throw new RateLimitError(message, retryAfterMs(err));
