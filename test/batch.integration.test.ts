@@ -36,6 +36,18 @@ describe("runBatch (Section 9 / Appendix B)", () => {
       { id: "case-01", jd: "Senior Backend Engineer. Node.js. Distributed systems. Mentoring.", company_url: `${base}/acme/`, days: 5 },
       { id: "case-02", jd: "FORCE_FAIL this extraction on purpose", company_url: `${base}/acme/`, days: 3 },
       { id: "case-03", jd: "Backend engineer. Node.js.", company_url: `${base}/does-not-exist/`, days: 2 },
+      {
+        id: "case-04",
+        jd: "Platform Engineer. Python. Kafka. HIPAA. Audit logging. SQL.",
+        company_url: `${base}/helix/`,
+        days: 4,
+      },
+      {
+        id: "case-05",
+        jd: "Application Security Engineer. TypeScript. OWASP. CI security tooling.",
+        company_url: `${base}/vault/`,
+        days: 3,
+      },
     ];
 
     const out = await runBatch(cases, { llm: fakeLlm(), allowPrivateNetworks: true });
@@ -43,8 +55,14 @@ describe("runBatch (Section 9 / Appendix B)", () => {
     // Appendix B envelope.
     expect(out.version).toBe("1.0");
     expect(typeof out.generated_at).toBe("string");
-    expect(out.kits).toHaveLength(3);
-    expect(out.kits.map((k) => k.id)).toEqual(["case-01", "case-02", "case-03"]);
+    expect(out.kits).toHaveLength(5);
+    expect(out.kits.map((k) => k.id)).toEqual([
+      "case-01",
+      "case-02",
+      "case-03",
+      "case-04",
+      "case-05",
+    ]);
 
     const byId = Object.fromEntries(out.kits.map((k) => [k.id, k]));
 
@@ -62,5 +80,14 @@ describe("runBatch (Section 9 / Appendix B)", () => {
     expect(byId["case-03"]!.status).toBe("ok");
     expect(byId["case-03"]!.kit!.source.pages_used).toEqual([]);
     expect(byId["case-03"]!.kit!.schedule.days).toHaveLength(2);
+
+    // case-04 / case-05: new fixture sites produce valid kits.
+    expect(byId["case-04"]!.status).toBe("ok");
+    expect(validateKit(byId["case-04"]!.kit).issues).toEqual([]);
+    expect(byId["case-04"]!.kit!.schedule.days).toHaveLength(4);
+
+    expect(byId["case-05"]!.status).toBe("ok");
+    expect(validateKit(byId["case-05"]!.kit).issues).toEqual([]);
+    expect(byId["case-05"]!.kit!.schedule.days).toHaveLength(3);
   });
 });

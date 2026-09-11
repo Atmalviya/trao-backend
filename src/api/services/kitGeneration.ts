@@ -92,6 +92,7 @@ async function runGeneration(kit: KitDoc, job: GenerationJobDoc): Promise<void> 
         llm: getLlm(),
         allowPrivateNetworks: config.ALLOW_PRIVATE_NETWORKS,
         tavilyApiKey: config.TAVILY_API_KEY,
+        apifyApiToken: config.APIFY_API_TOKEN,
         onStep: async (name, status, note) => {
           const step = job.steps.find((s) => s.name === name);
           if (step) {

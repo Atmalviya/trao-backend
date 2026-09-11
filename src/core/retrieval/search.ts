@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { fetchAmbitionBoxInterviews } from "./apifyAmbitionbox.js";
 
 export interface SearchResult {
   title: string;
@@ -6,40 +7,80 @@ export interface SearchResult {
   snippet: string;
 }
 
+export type DiscussionSource = "ambitionbox" | "tavily" | "duckduckgo" | "none";
+
 export interface DiscussionSearch {
   results: SearchResult[];
-  source: "tavily" | "duckduckgo" | "none";
+  source: DiscussionSource;
   note: string;
 }
 
 export interface SearchOptions {
+  companyUrl?: string;
+  roleTitle?: string;
+  seniority?: string;
+  apifyApiToken?: string;
   tavilyApiKey?: string;
   maxResults?: number;
+  ambitionBoxMaxPages?: number;
   timeoutMs?: number;
 }
 
-/** Look for public discussion of how a company interviews. */
+/**
+ * Look for public discussion of how a company interviews.
+ * Order: AmbitionBox (Apify) -> Tavily -> DuckDuckGo -> honest empty result.
+ */
 export async function searchInterviewDiscussion(
   company: string,
   opts: SearchOptions = {},
 ): Promise<DiscussionSearch> {
-  const query = `"${company}" interview process experience`;
-  const max = opts.maxResults ?? 5;
+  const max = opts.maxResults ?? 15;
   const timeoutMs = opts.timeoutMs ?? 10_000;
+  const query = `"${company}" interview process experience`;
+
+  if (opts.apifyApiToken) {
+    try {
+      const selection = await fetchAmbitionBoxInterviews(company, opts.apifyApiToken, {
+        companyUrl: opts.companyUrl,
+        role: {
+          roleTitle: opts.roleTitle ?? "",
+          seniority: opts.seniority,
+        },
+        maxPages: opts.ambitionBoxMaxPages ?? 2,
+        maxResults: max,
+      });
+      if (selection.results.length > 0) {
+        const profileHint =
+          selection.matchedProfiles.length > 0
+            ? ` (${selection.matchedProfiles.slice(0, 3).join(", ")}${selection.matchedProfiles.length > 3 ? ", …" : ""})`
+            : "";
+        const roleHint = opts.roleTitle?.trim() ? ` for ${opts.roleTitle.trim()}` : "";
+        return {
+          results: selection.results,
+          source: "ambitionbox",
+          note:
+            `Found ${selection.results.length} AmbitionBox interview question(s)${roleHint}` +
+            ` from ${selection.totalScraped} scraped${profileHint}.`,
+        };
+      }
+    } catch {
+      /* fall through to web search */
+    }
+  }
 
   if (opts.tavilyApiKey) {
     try {
-      const results = await tavily(query, opts.tavilyApiKey, max, timeoutMs);
+      const results = await tavily(query, opts.tavilyApiKey, Math.min(max, 5), timeoutMs);
       if (results.length > 0) {
         return { results, source: "tavily", note: `Found ${results.length} results via Tavily.` };
       }
     } catch {
-      // ignore
+      /* fall through to DuckDuckGo */
     }
   }
 
   try {
-    const results = await duckduckgo(query, max, timeoutMs);
+    const results = await duckduckgo(query, Math.min(max, 5), timeoutMs);
     if (results.length > 0) {
       return {
         results,
@@ -48,7 +89,7 @@ export async function searchInterviewDiscussion(
       };
     }
   } catch {
-    // ignore
+    /* fall through to none */
   }
 
   return {
@@ -105,7 +146,7 @@ async function duckduckgo(
         const u = new URL(href, "https://duckduckgo.com");
         real = u.searchParams.get("uddg") ?? href;
       } catch {
-        // keep href
+        /* keep href */
       }
       results.push({ title, url: real, snippet });
     }

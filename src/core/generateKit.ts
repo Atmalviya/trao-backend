@@ -38,6 +38,7 @@ export interface GenerateKitDeps {
   llm: LlmClient;
   allowPrivateNetworks: boolean;
   tavilyApiKey?: string;
+  apifyApiToken?: string;
   onStep?: StepReporter;
   /** Max coverage passes including the initial generation. Default 3. */
   maxCoveragePasses?: number;
@@ -119,6 +120,10 @@ export async function generateKit(
   // 3. Search public discussion of the interview process.
   await emit("search_public_discussion", "running");
   const discussion = await searchInterviewDiscussion(companyName, {
+    companyUrl: input.companyUrl,
+    roleTitle: extraction.title,
+    seniority: extraction.seniority,
+    apifyApiToken: deps.apifyApiToken,
     tavilyApiKey: deps.tavilyApiKey,
   }).catch(() => ({ results: [], source: "none" as const, note: "Search failed." }));
   notes.push(discussion.note);

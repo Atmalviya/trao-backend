@@ -26,6 +26,7 @@ export interface RunBatchDeps {
   llm: LlmClient;
   allowPrivateNetworks: boolean;
   tavilyApiKey?: string;
+  apifyApiToken?: string;
   maxCoveragePasses?: number;
   /** Called as each case starts (for CLI progress logging). */
   onCaseStart?: (index: number, total: number, testCase: BatchCase) => void;
@@ -56,6 +57,7 @@ export async function runBatch(cases: BatchCase[], deps: RunBatchDeps): Promise<
           llm: deps.llm,
           allowPrivateNetworks: deps.allowPrivateNetworks,
           tavilyApiKey: deps.tavilyApiKey,
+          apifyApiToken: deps.apifyApiToken,
           maxCoveragePasses: deps.maxCoveragePasses,
           onStep: deps.onStep?.(testCase.id),
         },

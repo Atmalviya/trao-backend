@@ -13,7 +13,14 @@ const envSchema = z.object({
   LLM_RPM: z.coerce.number().int().positive().optional(),
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().optional(),
-  TAVILY_API_KEY: z.string().optional(),
+  TAVILY_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  APIFY_API_TOKEN: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   ALLOW_PRIVATE_NETWORKS: z
     .string()
     .optional()

@@ -69,6 +69,20 @@ describe("crawlCompanySite (integration, fixture server)", () => {
     expect(result.aboutPage).not.toBeNull();
   });
 
+  it("finds Helix hiring page under /resources/careers/", async () => {
+    const result = await crawlCompanySite(`${base}/helix/`, guard);
+    expect(result.hiringPage).not.toBeNull();
+    expect(result.hiringPage!.url).toContain("/resources/careers/eng-hiring.html");
+    expect(result.hiringPage!.text.toLowerCase()).toContain("compliance");
+  });
+
+  it("finds Vault hiring page at /about/careers.html", async () => {
+    const result = await crawlCompanySite(`${base}/vault/`, guard);
+    expect(result.hiringPage).not.toBeNull();
+    expect(result.hiringPage!.url).toContain("/about/careers.html");
+    expect(result.hiringPage!.text.toLowerCase()).toContain("security engineering exercise");
+  });
+
   it("throws COMPANY_UNREACHABLE when the homepage 404s", async () => {
     await expect(crawlCompanySite(`${base}/does-not-exist/`, guard)).rejects.toMatchObject({
       code: "COMPANY_UNREACHABLE",
