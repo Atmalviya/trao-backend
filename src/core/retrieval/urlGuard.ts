@@ -28,7 +28,7 @@ function isPublicAddress(ip: string): boolean {
   }
 }
 
-
+/** Validate an external URL before we fetch it. */
 export async function assertUrlAllowed(
   rawUrl: string,
   opts: UrlGuardOptions,
@@ -48,9 +48,11 @@ export async function assertUrlAllowed(
   }
 
   if (opts.allowPrivateNetworks) {
+    // skip IP checks entirely (localhost is expected)
     return { url, addresses: [] };
   }
 
+  // check it directly if the host is already a literal IP
   if (ipaddr.isValid(url.hostname)) {
     if (!isPublicAddress(url.hostname)) {
       throw new UrlNotAllowedError(
