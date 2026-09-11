@@ -28,6 +28,8 @@ export interface JobStep {
 }
 
 export interface GenerationJobDoc extends mongoose.Document {
+  id: string;
+  _id: mongoose.Types.ObjectId;
   kitId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   status: JobStatus;

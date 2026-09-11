@@ -65,10 +65,18 @@ export class KitGenerationError extends Error {
  * recorded and the run continues — a partially-researched case still yields a
  * kit. Only an unrecoverable failure (e.g. requirement extraction fails) throws.
  */
+/** Research context captured during generation, persisted so a single section
+ *  can later be regenerated without re-crawling the whole site. */
+export interface ResearchContext {
+  hiringText: string;
+  discussionText: string;
+  briefPages: { url: string; text: string }[];
+}
+
 export async function generateKit(
   input: GenerateKitInput,
   deps: GenerateKitDeps,
-): Promise<{ kit: Kit; notes: string[] }> {
+): Promise<{ kit: Kit; notes: string[]; research: ResearchContext }> {
   const emit: StepReporter = deps.onStep ?? (() => undefined);
   const maxPasses = deps.maxCoveragePasses ?? 3;
   const notes: string[] = [];
@@ -228,7 +236,15 @@ export async function generateKit(
   }
   await emit("validate_kit", "done");
 
-  return { kit, notes };
+  return {
+    kit,
+    notes,
+    research: {
+      hiringText: crawl?.hiringPage?.text ?? "",
+      discussionText,
+      briefPages,
+    },
+  };
 }
 
 function errMsg(err: unknown): string {

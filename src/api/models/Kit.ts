@@ -4,6 +4,8 @@ import type { Kit as KitShape } from "../../core/schema/kit.js";
 export type KitStatus = "generating" | "ready" | "failed";
 
 export interface KitDoc extends mongoose.Document {
+  id: string;
+  _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   inputHash: string;
   input: {
@@ -13,6 +15,12 @@ export interface KitDoc extends mongoose.Document {
   };
   status: KitStatus;
   kit: KitShape | null;
+  notes: string[];
+  research: {
+    hiringText: string;
+    discussionText: string;
+    briefPages: { url: string; text: string }[];
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +41,8 @@ const kitSchema = new mongoose.Schema<KitDoc>(
       default: "generating",
     },
     kit: { type: mongoose.Schema.Types.Mixed, default: null },
+    notes: { type: [String], default: [] },
+    research: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true, minimize: false },
 );

@@ -3,6 +3,8 @@ import express from "express";
 import { config } from "../config.js";
 import { errorHandler, notFoundHandler } from "./errors.js";
 import { authRouter } from "./routes/auth.js";
+import { builderRouter } from "./routes/kitBuilder.js";
+import { kitsRouter } from "./routes/kits.js";
 import { sessionMiddleware } from "./session.js";
 
 export function createApp() {
@@ -14,6 +16,8 @@ export function createApp() {
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
   app.use("/auth", authRouter);
+  app.use("/kits", builderRouter);
+  app.use("/kits", kitsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
