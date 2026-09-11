@@ -111,7 +111,8 @@ describe("add/delete/reorder keep the kit valid", () => {
   });
 
   it("reorders and moves categories while preserving ids", () => {
-    const after = reorderQuestions(baseKit(), [
+    const before = baseKit();
+    const after = reorderQuestions(before, [
       { id: "q4", category: "technical" },
       { id: "q3", category: "behavioural" },
       { id: "q2", category: "technical" },
@@ -119,6 +120,8 @@ describe("add/delete/reorder keep the kit valid", () => {
     ]);
     expect(after.questions[0]!.id).toBe("q4");
     expect(after.questions.find((q) => q.id === "q3")!.category).toBe("behavioural");
+    expect(after.schedule.days.flatMap((d) => d.question_ids)).toEqual(["q4", "q3", "q2", "q1"]);
+    expect(JSON.stringify(after.schedule.days)).not.toBe(JSON.stringify(before.schedule.days));
   });
 
   it("rejects a reorder payload that does not match existing ids", () => {

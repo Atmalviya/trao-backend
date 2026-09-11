@@ -10,6 +10,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
   GEMINI_API_VERSION: z.string().optional(),
+  LLM_RPM: z.coerce.number().int().positive().optional(),
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),

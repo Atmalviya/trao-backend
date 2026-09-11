@@ -23,14 +23,18 @@ export interface RegenerateInput {
  * Regenerate a single section. The schedule is pure code (no model). The brief
  * and a single question category use the LLM with the research context captured
  * at generation time, so we do not re-crawl. Question regeneration preserves the
- * user's edited questions via mergeRegeneratedCategory.
+ * user's edited/manual/pinned questions via mergeRegeneratedCategory.
  */
 export async function regenerateSection(kitDoc: KitDoc, input: RegenerateInput): Promise<Kit> {
   const kit = kitDoc.kit!;
   const research = kitDoc.research;
 
   if (input.section === "schedule") {
-    return recomputeDerived(kit, { reschedule: true });
+    return recomputeDerived(kit, {
+      reschedule: true,
+      daysAvailable: kitDoc.input.days,
+      questionOrder: kit.questions,
+    });
   }
 
   if (input.section === "company_brief") {

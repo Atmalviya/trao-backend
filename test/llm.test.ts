@@ -86,6 +86,8 @@ describe("RateLimitedQueue", () => {
 });
 
 describe("normalizeProviderError", () => {
+  // The @google/genai SDK reports its status as a string name and puts the
+  // numeric HTTP code inside the JSON message body — both must normalise.
   const genaiError = (code: number, status: string, extra = "") =>
     Object.assign(new Error(`{"error":{"code":${code},"message":"boom"${extra},"status":"${status}"}}`), {
       status,

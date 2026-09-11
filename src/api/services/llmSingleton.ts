@@ -12,6 +12,7 @@ export function getLlm(): LlmClient {
       geminiApiVersion: config.GEMINI_API_VERSION,
       groqApiKey: config.GROQ_API_KEY,
       groqModel: config.GROQ_MODEL,
+      rateLimit: config.LLM_RPM ? { requestsPerMinute: config.LLM_RPM } : undefined,
     });
   }
   return client;

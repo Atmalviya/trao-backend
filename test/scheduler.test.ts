@@ -109,6 +109,14 @@ describe("allocateSchedule", () => {
     expect(s.days.every((d) => Number.isInteger(d.minutes))).toBe(true);
   });
 
+  it("can allocate in builder question order when requested", () => {
+    const userOrder = [questions[0]!, questions[2]!, questions[1]!, questions[4]!, questions[3]!];
+    const study = allocateSchedule(questions, requirements, 4);
+    const custom = allocateSchedule(questions, requirements, 4, { questionOrder: userOrder });
+    expect(custom.days.flatMap((d) => d.question_ids)).toEqual(userOrder.map((q) => q.id));
+    expect(JSON.stringify(custom.days)).not.toBe(JSON.stringify(study.days));
+  });
+
   it("keeps coverage consistent: scheduled musts match the coverage report", () => {
     const report = checkCoverage(requirements, questions);
     expect(report.uncoveredMust).toEqual([]);

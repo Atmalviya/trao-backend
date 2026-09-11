@@ -32,12 +32,19 @@ function allQuestionIds(kit: Kit): string[] {
   return kit.questions.map((q) => q.id);
 }
 
-/** Recompute the code-owned derived sections after questions change. */
-export function recomputeDerived(kit: Kit, opts: { reschedule: boolean }): Kit {
+export interface RecomputeDerivedOptions {
+  reschedule: boolean;
+  daysAvailable?: number;
+  questionOrder?: Question[];
+}
+
+export function recomputeDerived(kit: Kit, opts: RecomputeDerivedOptions): Kit {
   const report = checkCoverage(kit.role.requirements, kit.questions);
   const coverage = { uncovered_requirement_ids: report.uncovered, passes: kit.coverage.passes };
   const schedule = opts.reschedule
-    ? allocateSchedule(kit.questions, kit.role.requirements, kit.schedule.days_available)
+    ? allocateSchedule(kit.questions, kit.role.requirements, opts.daysAvailable ?? kit.schedule.days_available, {
+        questionOrder: opts.questionOrder,
+      })
     : kit.schedule;
   return { ...kit, coverage, schedule };
 }
@@ -105,7 +112,7 @@ export function reorderQuestions(kit: Kit, items: { id: string; category: Catego
     throw new Error("Reorder payload must reference exactly the existing question ids");
   }
   const questions = items.map((i) => ({ ...byId.get(i.id)!, category: i.category }));
-  return { ...kit, questions };
+  return recomputeDerived({ ...kit, questions }, { reschedule: true, questionOrder: questions });
 }
 
 export interface FlashcardPatch {

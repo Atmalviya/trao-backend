@@ -42,8 +42,12 @@ async function main() {
   const llm = createLlmClient({
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL,
+    geminiApiVersion: process.env.GEMINI_API_VERSION,
     groqApiKey: process.env.GROQ_API_KEY,
     groqModel: process.env.GROQ_MODEL,
+    rateLimit: process.env.LLM_RPM
+      ? { requestsPerMinute: Number(process.env.LLM_RPM) }
+      : undefined,
   });
 
   const raw = await readFile(values.input, "utf-8");

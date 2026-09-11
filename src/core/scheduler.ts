@@ -55,14 +55,49 @@ function focusFor(questions: Question[]): string {
   return CATEGORY_FOCUS[top] ?? "Focused practice";
 }
 
-/** Allocate questions across exactly `daysAvailable` days. */
+/**
+ * Allocate questions across exactly `daysAvailable` days.
+ *   - the schedule has exactly `daysAvailable` days;
+ *   - every provided question is scheduled, so every covered must-have
+ *     requirement appears somewhere;
+ *   - harder / higher-priority material lands on earlier days;
+ *   - each day has an integer minute total.
+ *
+ * When there are more days than questions, later days become spaced-review days
+ * that revisit the hardest earlier questions
+ */
+export interface AllocateScheduleOptions {
+  questionOrder?: Question[];
+}
+
+function resolveQuestionOrder(
+  questions: Question[],
+  requirements: Requirement[],
+  opts?: AllocateScheduleOptions,
+): Question[] {
+  if (!opts?.questionOrder) {
+    return orderQuestionsForStudy(questions, requirements);
+  }
+
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  if (
+    opts.questionOrder.length !== questions.length ||
+    opts.questionOrder.some((q) => !byId.has(q.id))
+  ) {
+    throw new Error("questionOrder must contain exactly the kit's current questions");
+  }
+
+  return opts.questionOrder.map((q) => byId.get(q.id)!);
+}
+
 export function allocateSchedule(
   questions: Question[],
   requirements: Requirement[],
   daysAvailable: number,
+  opts?: AllocateScheduleOptions,
 ): { days_available: number; days: ScheduleDay[] } {
   const days = Math.max(1, Math.floor(daysAvailable));
-  const ordered = orderQuestionsForStudy(questions, requirements);
+  const ordered = resolveQuestionOrder(questions, requirements, opts);
 
   const result: ScheduleDay[] = [];
 
