@@ -97,6 +97,21 @@ export function makeFakeProvider(): LlmProvider {
           ],
         });
       }
+      if (label.startsWith("analyze_resume_fit")) {
+        const ids = idsIn(req.prompt);
+        return json({
+          requirements: ids.map((id, i) => ({
+            requirement_id: id,
+            status: i === 0 ? "met" : i === 1 ? "partial" : "gap",
+            evidence: i === 0 ? "6 years Node.js listed" : "",
+            prep_note: i === 0 ? "Lead with backend scale stories" : "Study this area before the interview",
+          })),
+          strengths: ["Strong Node.js background"],
+          focus_area_notes: ["Brush up on distributed systems patterns"],
+          risks: [],
+          summary: "Solid backend fit with one gap to address.",
+        });
+      }
       return json({});
     },
   };

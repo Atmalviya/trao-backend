@@ -2,10 +2,12 @@ import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import { config } from "../../config.js";
 import { generateKit, type StepStatus } from "../../core/generateKit.js";
+import type { ResumeFileMeta } from "../../core/schema/resumeFit.js";
 import { GenerationJob, stepNames, type GenerationJobDoc } from "../models/GenerationJob.js";
 import { KitModel, type KitDoc } from "../models/Kit.js";
 import { getLlm } from "./llmSingleton.js";
 import { publishJobUpdate } from "./jobEvents.js";
+import { runResumeFitAnalysis } from "./resumeFit.js";
 
 export function inputHashOf(jd: string, companyUrl: string): string {
   return createHash("sha256").update(`${jd}\u0000${companyUrl}`).digest("hex");
@@ -15,6 +17,8 @@ export interface StartKitInput {
   jd: string;
   companyUrl: string;
   days: number;
+  resumeText?: string;
+  resumeFileMeta?: ResumeFileMeta;
 }
 
 export interface StartKitResult {
@@ -45,9 +49,12 @@ export async function startKitGeneration(
     kit = await KitModel.create({
       userId,
       inputHash,
-      input,
+      input: { jd: input.jd, companyUrl: input.companyUrl, days: input.days },
       status: "generating",
       kit: null,
+      resumeText: input.resumeText,
+      resumeFileMeta: input.resumeFileMeta,
+      resumeFitStatus: input.resumeText ? "pending" : "none",
     });
   } catch (err) {
     if (err instanceof mongoose.mongo.MongoServerError && err.code === 11000) {
@@ -115,9 +122,19 @@ async function runGeneration(kit: KitDoc, job: GenerationJobDoc): Promise<void> 
     kit.status = "ready";
     await kit.save();
 
-    job.status = "done";
-    await job.save();
-    publish();
+    if (kit.resumeText?.trim()) {
+      await runResumeFitAnalysis(kit, job, { failJobOnError: false });
+    } else {
+      const fitStep = job.steps.find((s) => s.name === "analyze_resume_fit");
+      if (fitStep) {
+        fitStep.status = "skipped";
+        fitStep.note = "No resume uploaded.";
+        fitStep.finishedAt = new Date();
+      }
+      job.status = "done";
+      await job.save();
+      publish();
+    }
   } catch (err) {
     const code =
       typeof err === "object" && err !== null && "code" in err

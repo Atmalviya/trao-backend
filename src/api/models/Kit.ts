@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import type { Kit as KitShape } from "../../core/schema/kit.js";
+import type { ResumeFileMeta, ResumeFit, ResumeFitStatus } from "../../core/schema/resumeFit.js";
 
 export type KitStatus = "generating" | "ready" | "failed";
 
@@ -21,6 +22,11 @@ export interface KitDoc extends mongoose.Document {
     discussionText: string;
     briefPages: { url: string; text: string }[];
   } | null;
+  resumeText?: string;
+  resumeFileMeta?: ResumeFileMeta;
+  resumeFit?: ResumeFit;
+  resumeFitStatus: ResumeFitStatus;
+  resumeFitError?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +49,15 @@ const kitSchema = new mongoose.Schema<KitDoc>(
     kit: { type: mongoose.Schema.Types.Mixed, default: null },
     notes: { type: [String], default: [] },
     research: { type: mongoose.Schema.Types.Mixed, default: null },
+    resumeText: { type: String },
+    resumeFileMeta: { type: mongoose.Schema.Types.Mixed },
+    resumeFit: { type: mongoose.Schema.Types.Mixed },
+    resumeFitStatus: {
+      type: String,
+      enum: ["none", "pending", "analyzing", "ready", "failed"],
+      default: "none",
+    },
+    resumeFitError: { type: String },
   },
   { timestamps: true, minimize: false },
 );

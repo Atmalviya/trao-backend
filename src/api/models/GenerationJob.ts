@@ -13,6 +13,7 @@ export const stepNames = [
   "coverage_check",
   "allocate_schedule",
   "validate_kit",
+  "analyze_resume_fit",
 ] as const;
 export type StepName = (typeof stepNames)[number];
 
@@ -34,7 +35,7 @@ export interface GenerationJobDoc extends mongoose.Document {
   userId: mongoose.Types.ObjectId;
   status: JobStatus;
   steps: JobStep[];
-  scope: "full" | "company_brief" | "questions" | "flashcards" | "schedule";
+  scope: "full" | "company_brief" | "questions" | "flashcards" | "schedule" | "resume_fit";
   error: { code: string; message: string } | null;
   createdAt: Date;
   updatedAt: Date;
@@ -64,7 +65,7 @@ const jobSchema = new mongoose.Schema<GenerationJobDoc>(
     steps: { type: [stepSchema], default: [] },
     scope: {
       type: String,
-      enum: ["full", "company_brief", "questions", "flashcards", "schedule"],
+      enum: ["full", "company_brief", "questions", "flashcards", "schedule", "resume_fit"],
       default: "full",
     },
     error: { type: mongoose.Schema.Types.Mixed, default: null },
