@@ -5,8 +5,8 @@
   "description": "AI Interview Prep Kit — backend API and generation pipeline",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/api/server.ts",
-    "start": "tsx src/api/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
