@@ -2,7 +2,7 @@
 
 Turns a job description + company URL into a structured interview prep kit (Appendix A).
 
-**API:** [https://api-trao.malviya.cloud](https://api-trao.malviya.cloud) · **App:** [https://www.trao.malviya.cloud](https://www.trao.malviya.cloud) · **Repo:** [https://github.com/Atmalviya/trao-backend](https://github.com/Atmalviya/trao-backend)
+**API:** [https://api-trao.malviya.xyz](https://api-trao.malviya.xyz) · **App:** [https://trao.malviya.xyz](https://trao.malviya.xyz) · **Repo:** [https://github.com/Atmalviya/trao-backend](https://github.com/Atmalviya/trao-backend)
 
 ---
 
