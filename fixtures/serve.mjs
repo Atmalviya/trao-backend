@@ -39,6 +39,8 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Fixture site serving ${ROOT} at http://localhost:${PORT}`);
-  console.log(`  Acme (buried hiring page): http://localhost:${PORT}/acme/`);
-  console.log(`  Nimbus (no hiring page):   http://localhost:${PORT}/nimbus/`);
+  console.log(`  Acme (handbook hiring):  http://localhost:${PORT}/acme/`);
+  console.log(`  Nimbus (no hiring):      http://localhost:${PORT}/nimbus/`);
+  console.log(`  Helix (buried careers):  http://localhost:${PORT}/helix/`);
+  console.log(`  Vault (/about/careers):  http://localhost:${PORT}/vault/`);
 });

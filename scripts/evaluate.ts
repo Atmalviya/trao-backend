@@ -64,6 +64,7 @@ async function main() {
     llm,
     allowPrivateNetworks: process.env.ALLOW_PRIVATE_NETWORKS === "true",
     tavilyApiKey: process.env.TAVILY_API_KEY,
+    apifyApiToken: process.env.APIFY_API_TOKEN,
     onCaseStart: (i, total, c) => console.error(`[${i + 1}/${total}] ${c.id} — ${c.company_url}`),
     onStep: (caseId) => (name, status, note) =>
       void console.error(`    ${name}: ${status}${note ? ` — ${note}` : ""}`),
