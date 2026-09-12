@@ -1,144 +1,287 @@
-# AI Interview Prep Kit
+# AI Interview Prep Kit — Backend
 
-Web app + API that turns a job description and company URL into a personalised interview prep kit (Appendix A). Pairs with the repo.
+Turns a job description + company URL into a structured interview prep kit (Appendix A).
 
-**Deployed** **Frontend:** *(URL) -* 
+**API:** [https://api-trao.malviya.cloud](https://api-trao.malviya.cloud) · **App:** [https://www.trao.malviya.cloud](https://www.trao.malviya.cloud) · **Repo:** [https://github.com/Atmalviya/trao-backend](https://github.com/Atmalviya/trao-backend)
 
-## Tech stack
+---
 
+## Overview
 
-| Layer    | Choice                                      | Justification                              |
-| -------- | ------------------------------------------- | ------------------------------------------ |
-| Frontend | Next.js 15 + Tailwind CSS 4                 | Prescribed stack                           |
-| Backend  | Node.js + Express 5 + TypeScript            | Prescribed stack                           |
-| Database | MongoDB (Mongoose)                          | Prescribed stack                           |
-| LLM      | Gemini `gemini-2.5-flash` (+ Groq fallback) | High free-tier TPM; Groq on 429/failure    |
-| Scraping | cheerio + robots-parser                     | No headless browser; fast for batch window |
-| Search   | AmbitionBox (Apify) → Tavily → DuckDuckGo   | Public interview discussion; graceful skip |
+Express API + generation pipeline. Users auth via session cookies, create kits through the web UI or batch CLI. Research is real: company sites are crawled, public interview discussion is searched, and the kit is built through deliberate sequential steps — not one mega-prompt.
 
+**Stack:** Node.js 20 · Express 5 · TypeScript · MongoDB Atlas · Gemini (+ Groq fallback) · cheerio · Zod · Vitest
 
-Hand-rolled pipeline (no LangChain) so step sequencing and rate-limit control stay explicit.
+---
 
 ## Setup
 
-
-
-### Local
+**Local**
 
 ```bash
-npm install
-cp .env.example .env   # set MONGODB_URI, SESSION_SECRET, GEMINI_API_KEY, WEB_ORIGIN
-npm run dev            # http://localhost:4000
+npm install && cp .env.example .env
+npm run dev          # :4000
+npm test             # 94 tests
 ```
 
-Start the frontend separately (`NEXT_PUBLIC_API_URL=http://localhost:4000`). 
+**Deployed:** Coolify (Docker) → [https://api-trao.malviya.cloud](https://api-trao.malviya.cloud)
 
-### Deployed
-
-- **API:** Render - `npm install && npm run build`, start `npm start`. Env vars from `.env.example`. Set `NODE_ENV=production`, `WEB_ORIGIN` to frontend URL. Do not set `ALLOW_PRIVATE_NETWORKS` in production.
-- **Database:** MongoDB Atlas M0.
-- **Frontend:** Vercel with `NEXT_PUBLIC_API_URL` pointing at the API.
-
-
-
-### Batch entry point
+**Batch (Section 9)**
 
 ```bash
 npm run evaluate -- --input <cases.json> --output <kits.json>
 ```
 
-Run for the Live sites
+Env vars: see `[.env.example](./.env.example)`.
 
-```bash
-npm run evaluate -- --input fixtures/cases.live-example.json --output fixtures/output/live-kits.json
-```
+---
 
-Example with local fixture sites:
+## LLM
 
-```bash
-npm run fixtures   #First serves mock company sites on :8099 
 
-ALLOW_PRIVATE_NETWORKS=true npm run evaluate -- --input fixtures/cases.local-example.json --output fixtures/output/local-kits.json
-```
+|          | Provider      | Model                     |
+| -------- | ------------- | ------------------------- |
+| Primary  | Google Gemini | `gemini-2.5-flash`        |
+| Fallback | Groq          | `llama-3.3-70b-versatile` |
 
-Runs the same `generateKit` pipeline as the web app. Input/output shapes: Appendix B. Continues after per-case failure.
 
-## LLM provider and model
+Shared rate-limit queue (5 RPM default, backoff on 429). Batch cases run sequentially.
 
-- **Primary:** Google Gemini - `gemini-2.5-flash` (override via `GEMINI_MODEL`)
-- **Fallback:** Groq - `llama-3.3-70b-versatile`
+---
 
-All calls share a rate-limit queue (default 5 RPM, exponential backoff on 429). Batch cases run sequentially.
+## Pipeline
+
+
+| Step                       | Owner      | Does                                                      |
+| -------------------------- | ---------- | --------------------------------------------------------- |
+| `extract_requirements`     | LLM        | JD → `r1…rn` (must/nice). Conservative.                   |
+| `crawl_company_site`       | Code       | Rank links, crawl, find hiring page. Skip if unreachable. |
+| `search_public_discussion` | Code       | AmbitionBox → Tavily → DDG → skip.                        |
+| `company_brief`            | LLM        | Summary from fetched pages.                               |
+| `generate_questions`       | LLM        | One call per category, weighted by hiring format.         |
+| `generate_flashcards`      | LLM        | Cards linked to requirement ids.                          |
+| `coverage_check`           | Code + LLM | Gap detection + fill (max 3 passes).                      |
+| `allocate_schedule`        | Code       | Exactly N days. Pure arithmetic.                          |
+| `validate_kit`             | Code       | Zod vs Appendix A.                                        |
+
+
+**Retrieval:** No hard-coded paths. Respects robots.txt. Untrusted text wrapped in injection guards.
+
+**Coverage:** Deterministic set check in code. Uncovered must-haves recorded honestly — never invented.
+
+---
 
 ## Architecture
 
+**High-level**
+
+```mermaid
+flowchart TB
+  subgraph clients [Clients]
+    UI[Next.js UI]
+    CLI[Batch CLI]
+  end
+
+  subgraph api [Express API]
+    RC[routes → controllers → services]
+  end
+
+  subgraph core [src/core — shared by API and CLI]
+    GK[generateKit]
+    RET[retrieval — crawl, search, fetch]
+    PIPE[pipeline — extract, brief, questions, flashcards]
+    COV[coverage — gap check + fill]
+    SCH[scheduler — day allocation]
+    GK --> RET --> PIPE --> COV --> SCH
+  end
+
+  subgraph external [External]
+    DB[(MongoDB)]
+    LLM[Gemini / Groq]
+    WEB[Company websites]
+    DISC[AmbitionBox · Tavily · DDG]
+  end
+
+  UI -->|REST + SSE| RC
+  CLI --> GK
+  RC --> GK
+  RC --> DB
+  RET --> WEB
+  RET --> DISC
+  PIPE --> LLM
 ```
-Next.js UI ──▶ Express API (routes → controllers → services) ──▶ MongoDB
-                      │
-                      ▼
-               src/core/generateKit
-               (pipeline, crawl, search, coverage, scheduler)
-                      ▲
-               scripts/evaluate.ts (batch CLI)
+
+`src/core/` has no Express imports — web app and `npm run evaluate` run the same pipeline.
+
+**Kit generation pipeline** (`src/core/generateKit.ts`)
+
+```mermaid
+flowchart TD
+  START([Input: jd · company_url · days]) --> S1
+
+  subgraph step1 [1 · extract_requirements]
+    S1[LLM: parse JD] --> R1[requirements r1…rn<br/>must/nice · kind]
+  end
+
+  START --> S2
+  subgraph step2 [2 · crawl_company_site]
+    S2[Code: crawl site] --> V1[URL guard · robots.txt]
+    V1 --> V2[Link rank · best-first fetch]
+    V2 --> P1[about + hiring pages]
+    S2 -.->|unreachable| N1[skip · note]
+  end
+
+  START --> S3
+  subgraph step3 [3 · search_public_discussion]
+    S3[Code: search chain] --> AB[AmbitionBox / Apify]
+    AB --> TV[Tavily]
+    TV --> DDG[DuckDuckGo]
+    DDG --> N2[skip · note]
+  end
+
+  R1 --> S4
+  P1 --> S4
+  subgraph step4 [4 · company_brief]
+    S4[LLM: summarise pages] --> B1[company_brief]
+  end
+
+  R1 --> S5
+  P1 --> HC[deriveHiringContext]
+  S3 --> HC
+  HC --> S5
+  subgraph step5 [5 · generate_questions]
+    S5[LLM: one call per category] --> Q1[technical]
+    S5 --> Q2[behavioural]
+    S5 --> Q3[system-design]
+    S5 --> Q4[company-fit]
+  end
+
+  R1 --> S6
+  B1 --> S6
+  subgraph step6 [6 · generate_flashcards]
+    S6[LLM] --> F1[flashcards f1…fn]
+  end
+
+  Q1 & Q2 & Q3 & Q4 --> S7
+  subgraph step7 [7 · coverage_check]
+    S7[Code: checkCoverage] --> GAP{uncovered reqs?}
+    GAP -->|yes · pass ≤ 3| S7L[LLM: generateGapQuestions]
+    S7L --> S7
+    GAP -->|no · or max passes| S8
+  end
+
+  START --> S8
+  subgraph step8 [8 · allocate_schedule]
+    S8[Code: must-first · hardest-first<br/>split into N days · integer minutes] --> SCH[schedule]
+  end
+
+  R1 & B1 & Q1 & Q2 & Q3 & Q4 & F1 & SCH --> S9
+  subgraph step9 [9 · validate_kit]
+    S9[Code: Zod + referential checks] --> OUT([Appendix A kit])
+  end
+
+  OUT -.->|web app · optional| S10
+  subgraph step10 [10 · analyze_resume_fit]
+    S10[LLM: map resume → r1…rn] --> FIT[resumeFit report]
+  end
+
+  style S1 fill:#e8f4fc
+  style S4 fill:#e8f4fc
+  style S5 fill:#e8f4fc
+  style S6 fill:#e8f4fc
+  style S7L fill:#e8f4fc
+  style S10 fill:#e8f4fc
+  style S2 fill:#f0f0f0
+  style S3 fill:#f0f0f0
+  style S7 fill:#f0f0f0
+  style S8 fill:#f0f0f0
+  style S9 fill:#f0f0f0
 ```
 
-`src/core/` has no Express imports - API and batch CLI share the same generation code.
+Blue = LLM steps · Grey = deterministic code · Dashed = non-fatal skip or optional path.
 
-Generation is async: `GenerationJob` tracks steps, progress streams via SSE. Duplicate JD+URL per user is deduped via `inputHash`.
+**End-to-end request flow**
 
-## Retrieval approach and sources
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant FE as Frontend
+  participant API as Express API
+  participant GK as generateKit
+  participant RET as Crawl / Search
+  participant LLM as Gemini
+  participant DB as MongoDB
 
-**Company site:** Validate URL (SSRF guard in production) → fetch homepage → rank links by anchor/URL signals (no hard-coded paths) → best-first crawl → respect **robots.txt** → rate-limit per host. Page failures are non-fatal.
+  U->>FE: JD + company URL + days
+  FE->>API: POST /kits
+  API->>DB: create kit + GenerationJob
+  API-->>FE: kit id
+  API->>GK: async run
 
-**Public discussion** (first hit wins): AmbitionBox via Apify → Tavily → DuckDuckGo → skip with honest note.
+  GK->>LLM: extract_requirements
+  GK->>RET: crawl_company_site
+  GK->>RET: search_public_discussion
+  GK->>LLM: company_brief
+  GK->>LLM: generate_questions (per category)
+  GK->>LLM: generate_flashcards
 
-Untrusted page text is treated as data, not instructions, before LLM use.
+  loop coverage — max 3 passes
+    GK->>GK: checkCoverage (code)
+    alt gaps remain
+      GK->>LLM: generateGapQuestions
+    end
+  end
 
-## Research and generation sequence
+  GK->>GK: allocate_schedule (code)
+  GK->>GK: validate_kit (Zod)
+  GK->>DB: save kit (status ready)
+
+  par SSE progress
+    GK-->>API: step updates
+    API-->>FE: GET /kits/:id/events
+  end
+
+  FE-->>U: Kit ready
+
+  opt resume uploaded
+    GK->>LLM: analyze_resume_fit
+    GK->>DB: save resumeFit
+  end
+```
+
+---
+
+## Builder state
+
+Questions/flashcards carry `origin` (`generated` | `edited` | `manual`) and `pinned`.
+
+Category regen replaces only **generated + unpinned** items. Edited, manual, and pinned survive.
+
+---
 
 
-| Step                       | Owner      | Responsibility                                                                                                           |
-| -------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `extract_requirements`     | LLM        | JD → requirements `r1…rn` (must/nice, kind). Conservative - no invented reqs.                                            |
-| `crawl_company_site`       | Code       | Find about + hiring pages; skip if unreachable.                                                                          |
-| `search_public_discussion` | Code       | AmbitionBox → Tavily → DDG → skip.                                                                                       |
-| `company_brief`            | LLM        | Brief from fetched pages.                                                                                                |
-| `generate_questions`       | LLM        | **One call per category**, weighted by hiring format found.                                                              |
-| `generate_flashcards`      | LLM        | Flashcards linked to requirement ids.                                                                                    |
-| `coverage_check`           | Code + LLM | Gap detection + fill loop (max **3 passes**); stops early if model adds nothing. Uncovered must-haves recorded honestly. |
-| `allocate_schedule`        | Code       | Distribute across exactly N days.                                                                                        |
-| `validate_kit`             | Code       | Zod validation against Appendix A.                                                                                       |
 
+## Schedule
 
-Schedule allocation and coverage checking are deterministic code, not LLM prompts.
+Code in `scheduler.ts`: must-haves first → hardest first → split into N days → integer minutes (15/25/40 by difficulty). Extra days = review.
 
-## Generated, edited, and pinned state
-
-Each question/flashcard carries `origin` (`generated` | `edited` | `manual`) and `pinned` (boolean).
-
-Regenerating a category replaces only **generated + unpinned** items in that category. Edited, manual, and pinned items survive. Other sections are untouched.
-
-## Schedule allocation
-
-Pure code in `scheduler.ts`:
-
-1. Order questions: must-have coverage first, then highest difficulty.
-2. Split into exactly `days_available` contiguous chunks (heavier days first).
-3. Each day: focus, question ids, integer minutes (difficulty 1→15, 2→25, 3→40 min).
-4. Extra days become review days revisiting hardest questions.
+---
 
 
 
 ## Creative feature: Resume fit
 
-Optional resume upload (PDF, DOCX, TXT, MD) maps the candidate's experience to extracted requirements (`r1`, `r2`, …) with per-requirement `strong` / `partial` / `gap` status and focus areas. Prep intelligence only - not CV rewriting. Non-blocking; stored outside Appendix A export.
+Optional upload (PDF/DOCX/TXT/MD) → per-requirement gap/strength report vs `r1`, `r2`, … Prep intelligence only, not CV rewriting. Non-blocking.
 
-## Design decisions, trade-offs, and limitations
+---
 
-**Practice mode:** Confidence-weighted ordering - unseen cards first, then lowest confidence, then least-recently seen. Chosen over spaced repetition for simplicity and determinism.
 
-**Edge cases:** Unreachable URLs, missing hiring pages, thin JDs, and empty search results produce honest partial kits (`status: "ok"`), not fabricated content. `status: "failed"` only when no kit can be produced. LLM 429 → backoff + Groq fallback. Invalid JSON → one repair attempt, then fallback provider.
 
-**Trade-offs:** No headless browser (JS-only sites may crawl thin). In-process jobs + SSE (no Redis). Max 3 coverage passes (balance vs 15-min batch budget).
+## Trade-offs & limitations
 
-**Limitations:** Free-tier LLM RPM is the main batch bottleneck. AmbitionBox match depends on company name + role title. JS-rendered sites may yield limited crawl data.
+- Practice: confidence-weighted sort (unseen → weakest → oldest)
+- No headless browser · in-process SSE jobs · max 3 coverage passes
+- Partial research → `status: "ok"` with honest notes; `failed` only when no kit produced
+- Free-tier RPM is the main batch bottleneck
+
